@@ -1,0 +1,85 @@
+# Pipeline за деплой на SIT и PROD
+#
+#   push в develop  ->  SIT   (https://<user>.github.io/<repo>/sit/)
+#   push в main     ->  PROD  (https://<user>.github.io/<repo>/)
+#
+# GitHub Pages поддържа само един сайт на repo, затова при всеки деплой
+# сглобяваме двата клона: main в корена, develop в папка /sit/.
+
+name: Deploy
+
+on:
+  push:
+    branches: [develop, main]
+  workflow_dispatch: # ръчно стартиране от таба Actions
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Само един деплой наведнъж, за да не се застъпват SIT и PROD
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  # 1) Определя към коя среда отива промяната според клона
+  target:
+    runs-on: ubuntu-latest
+    outputs:
+      env: ${{ steps.pick.outputs.env }}
+    steps:
+      - id: pick
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "env=prod" >> "$GITHUB_OUTPUT"
+          else
+            echo "env=sit" >> "$GITHUB_OUTPUT"
+          fi
+
+  # 2) Врата към средата. Ако за "prod" са зададени Required reviewers,
+  #    pipeline-ът спира тук и чака одобрение.
+  #    При Oracle DB тук ще са SQL миграциите, с secrets от средата.
+  approve:
+    needs: target
+    runs-on: ubuntu-latest
+    environment: ${{ needs.target.outputs.env }}
+    steps:
+      - run: echo "Деплой към ${{ needs.target.outputs.env }} от клон ${GITHUB_REF_NAME}"
+
+  # 3) Сглобява сайта от двата клона
+  build:
+    needs: approve
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: prod
+
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+          path: sit
+
+      - name: Assemble site
+        run: |
+          mkdir -p _site/sit
+          rsync -a --exclude='.git' --exclude='.github' --exclude='README.md' prod/ _site/
+          rsync -a --exclude='.git' --exclude='.github' --exclude='README.md' sit/ _site/sit/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  # 4) Публикува в GitHub Pages
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
