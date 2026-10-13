@@ -1,11 +1,11 @@
-# Test project
+# Future Me
 
 Статичен сайт с две среди и автоматичен деплой чрез GitHub Actions.
 
 | Среда | Клон      | Адрес                                     |
 |-------|-----------|-------------------------------------------|
-| SIT   | `develop` | `https://<user>.github.io/<repo>/sit/`    |
-| PROD  | `main`    | `https://<user>.github.io/<repo>/`        |
+| SIT   | `develop` | `https://ivelinanenova-ship-it.github.io/Future-me/sit/`    |
+| PROD  | `main`    | `https://ivelinanenova-ship-it.github.io/Future-me/`        |
 
 ## Как се качва промяна
 

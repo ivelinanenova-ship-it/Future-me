@@ -1,30 +1,30 @@
-# Pipeline за деплой на SIT и PROD
+# Deployment pipeline for SIT and PROD
 #
-#   push в develop  ->  SIT   (https://<user>.github.io/<repo>/sit/)
-#   push в main     ->  PROD  (https://<user>.github.io/<repo>/)
+#   push to develop  ->  SIT   (https://ivelinanenova-ship-it.github.io/Future-me/sit/)
+#   push to main     ->  PROD  (https://ivelinanenova-ship-it.github.io/Future-me/)
 #
-# GitHub Pages поддържа само един сайт на repo, затова при всеки деплой
-# сглобяваме двата клона: main в корена, develop в папка /sit/.
+# GitHub Pages supports only one site per repo, so on every deploy
+# we assemble both branches: main at the root, develop in the /sit/ folder.
 
 name: Deploy
 
 on:
   push:
     branches: [develop, main]
-  workflow_dispatch: # ръчно стартиране от таба Actions
+  workflow_dispatch: # manual run from the Actions tab
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Само един деплой наведнъж, за да не се застъпват SIT и PROD
+# Only one deploy at a time, so SIT and PROD don't overlap
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  # 1) Определя към коя среда отива промяната според клона
+  # 1) Pick the target environment based on the branch
   target:
     runs-on: ubuntu-latest
     outputs:
@@ -38,17 +38,17 @@ jobs:
             echo "env=sit" >> "$GITHUB_OUTPUT"
           fi
 
-  # 2) Врата към средата. Ако за "prod" са зададени Required reviewers,
-  #    pipeline-ът спира тук и чака одобрение.
-  #    При Oracle DB тук ще са SQL миграциите, с secrets от средата.
+  # 2) Gate to the environment. If "prod" has Required reviewers configured,
+  #    the pipeline pauses here and waits for approval.
+  #    For an Oracle DB, the SQL migrations will run here, using the environment's secrets.
   approve:
     needs: target
     runs-on: ubuntu-latest
     environment: ${{ needs.target.outputs.env }}
     steps:
-      - run: echo "Деплой към ${{ needs.target.outputs.env }} от клон ${GITHUB_REF_NAME}"
+      - run: echo "Deploying to ${{ needs.target.outputs.env }} from branch ${GITHUB_REF_NAME}"
 
-  # 3) Сглобява сайта от двата клона
+  # 3) Assemble the site from both branches
   build:
     needs: approve
     runs-on: ubuntu-latest
@@ -73,7 +73,7 @@ jobs:
         with:
           path: _site
 
-  # 4) Публикува в GitHub Pages
+  # 4) Publish to GitHub Pages
   deploy:
     needs: build
     runs-on: ubuntu-latest
