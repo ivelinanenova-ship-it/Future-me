@@ -9,8 +9,8 @@
 name: Deploy
 
 on:
-  push:
-    branches: [develop, main]
+
+
   workflow_dispatch: # manual run from the Actions tab
 
 permissions:
